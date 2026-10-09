@@ -9,7 +9,7 @@ namespace CleanPC.Pro
     {
         public bool Auto, DryRun, Safe, AllDrives, Help, SelfTest, Gui = true, AutoScan;
         public List<string> Drives = new List<string>();
-        public string Preset = "Safe", SelfTestDir, Tab;
+        public string Preset = "Safe", SelfTestDir, Tab, DemoLockDir;
 
         public static CliArgs Parse(string[] args)
         {
@@ -27,6 +27,7 @@ namespace CleanPC.Pro
                     case "--selftest": a.SelfTest = true; if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) a.SelfTestDir = args[++i]; break;
                     case "--preset": if (i + 1 < args.Length) a.Preset = args[++i]; break;
                     case "--autoscan": a.AutoScan = true; break;
+                    case "--demo-locks": if (i + 1 < args.Length) a.DemoLockDir = args[++i]; break;   // hidden test hook: cleans ONLY that throwaway folder through the normal post-clean flow
                     case "--tab": if (i + 1 < args.Length) a.Tab = args[++i]; break;
                     case "--drives":
                         if (i + 1 < args.Length) a.Drives.AddRange(args[++i].Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries));

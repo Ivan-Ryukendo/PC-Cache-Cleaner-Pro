@@ -136,7 +136,7 @@
                     <DockPanel>
                         <WrapPanel x:Name="HeaderPanel" DockPanel.Dock="Top" IsItemsHost="True" Margin="0,0,0,0"/>
                         <Border BorderBrush="{DynamicResource BorderBrushX}" BorderThickness="0,1,0,0" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="SelectedContent"/>
+                            <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
                         </Border>
                     </DockPanel>
                 </ControlTemplate>

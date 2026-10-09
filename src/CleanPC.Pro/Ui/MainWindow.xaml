@@ -93,7 +93,7 @@
             <!-- 1 CLEANUP -->
             <TabItem Header="Cleanup">
                 <Grid DataContext="{Binding Cleanup}">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <WrapPanel Margin="0,0,0,8">
                         <TextBlock Text="Preset:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,4"/>
                         <RadioButton Style="{StaticResource Chip}" Content="Safe only" IsChecked="{Binding IsPresetSafe, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Pre-ticked safe items only"/>
@@ -101,9 +101,15 @@
                         <RadioButton Style="{StaticResource Chip}" Content="Deep clean" IsChecked="{Binding IsPresetDeep, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Every non-RISKY item incl. Recycle Bin, root Temp, Claude VM cache"/>
                         <RadioButton Style="{StaticResource Chip}" Content="Custom" IsChecked="{Binding IsPresetCustom, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Your saved selection"/>
                         <Button Content="Save ticked as Custom" Command="{Binding SaveCustomCommand}" Margin="8,0,6,4" MinHeight="28"/>
-                        <TextBlock Text="Tick what you want gone, then press Clean Selected. Only regenerable cache/temp data is listed; risky items are never ticked by a preset. Double-click a row to see every path." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="8,0,0,4"/>
+                        <TextBlock Text="Tick what you want gone, then press Clean Selected. Only regenerable cache/temp data is listed; risky items are never ticked by a preset. Double-click a row to see every path."  VerticalAlignment="Center" Margin="8,0,0,4">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Dim}">
+                                    <Style.Triggers><DataTrigger Binding="{Binding DataContext.Locks.HasLocks, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </WrapPanel>
-                    <DataGrid Grid.Row="1" x:Name="CleanGrid" ItemsSource="{Binding Targets}" MouseDoubleClick="Grid_DoubleClick" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Cleanup items">
+                    <DataGrid Grid.Row="1" MinHeight="96" x:Name="CleanGrid" ItemsSource="{Binding Targets}" MouseDoubleClick="Grid_DoubleClick" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Cleanup items">
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Del">
                                 <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" ToolTip="Tick to delete this item"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -128,7 +134,50 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                    <!-- LOCKED FILES: which running program holds each skipped file (read-only diagnosis); closing a program is always a separate, confirmed click -->
+                    <Border Grid.Row="2" x:Name="LockedPanel" DataContext="{Binding DataContext.Locks, RelativeSource={RelativeSource AncestorType=Window}}" Visibility="{Binding HasLocks, Converter={StaticResource B2V}}"
+                            BorderThickness="1" BorderBrush="{DynamicResource BorderBrushX}" Background="{DynamicResource SurfaceBrush}" CornerRadius="6" Padding="10,8" Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <DockPanel>
+                                <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="12,0,0,0">
+                                    <Button Content="Retry skipped items" Style="{StaticResource Primary}" Command="{Binding RetryCommand}" Margin="0,0,8,4" ToolTip="Tries again to delete ONLY the files that were skipped (same safety checks as a normal clean)"/>
+                                    <Button Content="Re-check" Command="{Binding RefreshCommand}" Margin="0,0,8,4" ToolTip="Ask Windows again which programs hold the files"/>
+                                    <Button Content="Dismiss" Command="{Binding DismissCommand}" Margin="0,0,0,4"/>
+                                </WrapPanel>
+                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,0,4"><Run Text="Locked files:" FontWeight="SemiBold"/><Run Text=" "/><Run Text="{Binding Summary, Mode=OneWay}"/></TextBlock>
+                            </DockPanel>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding Holders}" MaxHeight="100" MinHeight="56" AutomationProperties.Name="Programs holding locked files">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Program" Width="3*" MinWidth="110" SortMemberPath="Name">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Style="{StaticResource Trim}" ToolTip="{Binding PathText}"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  "/><Run Text="{Binding PathText, Mode=OneWay}" Foreground="{DynamicResource TextDimBrush}"/></TextBlock></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="PID" Width="Auto" MinWidth="56" SortMemberPath="Pid">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Pid}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Files" Width="Auto" MinWidth="52" SortMemberPath="FileCount">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding FileCount}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Held" Width="Auto" MinWidth="90" SortMemberPath="Bytes">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding BytesText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Type / status" Width="2*" MinWidth="90" SortMemberPath="AppType">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding TypeAndState}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="230" CanUserSort="False" Header="">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Files..." Margin="0,0,6,0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.FilesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                                <Button Content="Close this program" Margin="0" MinHeight="26" Padding="8,2" IsEnabled="{Binding CanClose}" ToolTip="{Binding CloseTip}" Command="{Binding DataContext.CloseCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Grid.Row="2" Text="{Binding Note}" Style="{StaticResource Dim}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="3" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding TotalText}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
@@ -473,6 +522,45 @@
             </TabItem>
 
             <!-- 10 HISTORY / SETTINGS -->
+            <!-- WHO IS USING SPACE -->
+            <TabItem Header="Who is using space">
+                <Grid DataContext="{Binding Owners}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="Scan running programs" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="Read-only. Maps each running program to the size of its install folder and of folders in AppData / ProgramData named after it. Data folders are matched by name only, so they are labelled 'likely'. Use Stop to cancel." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" AutomationProperties.Name="Programs and the space they use">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Program" Width="2*" MinWidth="150" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding ProcessesText}" Style="{StaticResource Dim}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Total" Width="Auto" MinWidth="80" SortMemberPath="Total">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding TotalText}" Style="{StaticResource Num}" FontWeight="SemiBold"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Install folder" Width="Auto" MinWidth="90" SortMemberPath="InstallSize">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding InstallText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Data (likely)" Width="Auto" MinWidth="130" SortMemberPath="DataSize">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DataText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Where" Width="3*" MinWidth="170" SortMemberPath="InstallDir">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MatchText}" Style="{StaticResource Trim}" ToolTip="{Binding MatchText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="250" CanUserSort="False" Header="">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Folders..." Margin="0,0,6,0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.FoldersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                        <Button Content="Open location" Margin="0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="2" Text="{Binding Summary}" Style="{StaticResource Dim}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="History / Settings">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Settings}">
                     <StackPanel Margin="0,0,12,12" MaxWidth="1000" HorizontalAlignment="Left">

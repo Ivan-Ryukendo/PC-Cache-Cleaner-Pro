@@ -91,17 +91,18 @@ namespace CleanPC.Pro
             {
                 string why;
                 if (!CleanGuard.Check(p, false, out why)) { skips.Add("BLOCKED " + p + ": " + why); continue; }
+                long len = 0;
                 try
                 {
                     var fi = new FileInfo(p);
                     if (!fi.Exists) continue;
                     if (IsReparse(fi)) { skips.Add("SKIP " + p + ": reparse point"); continue; }
-                    long len = fi.Length;
+                    len = fi.Length;
                     if ((fi.Attributes & FileAttributes.ReadOnly) != 0) fi.Attributes = FileAttributes.Normal;
                     fi.Delete();
                     freed += len;
                 }
-                catch (Exception e) { skips.Add("SKIP " + p + ": " + e.Message); }
+                catch (Exception e) { Skip.File(skips, p, e, len); }
             }
             return freed;
         }
@@ -127,10 +128,15 @@ namespace CleanPC.Pro
                 else
                 {
                     var f = (FileInfo)fi;
-                    long len = f.Length;
-                    if ((f.Attributes & FileAttributes.ReadOnly) != 0) f.Attributes = FileAttributes.Normal;
-                    f.Delete();
-                    freed += len;
+                    long len = 0;
+                    try
+                    {
+                        len = f.Length;
+                        if ((f.Attributes & FileAttributes.ReadOnly) != 0) f.Attributes = FileAttributes.Normal;
+                        f.Delete();
+                        freed += len;
+                    }
+                    catch (Exception e) { Skip.File(skips, fi.FullName, e, len); }
                 }
             }
             catch (Exception e) { skips.Add("SKIP " + fi.FullName + ": " + e.Message); }

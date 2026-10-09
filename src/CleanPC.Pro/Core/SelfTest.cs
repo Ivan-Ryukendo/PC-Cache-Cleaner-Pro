@@ -11,7 +11,7 @@ namespace CleanPC.Pro
     /// `CleanPC-Pro.exe --selftest [folder]`: unit-style checks run inside the exe. Everything destructive happens only in a
     /// throwaway folder (default %TEMP%\CleanPCProSelfTest). Never touches real caches.
     /// </summary>
-    public static class SelfTest
+    public static partial class SelfTest
     {
         static int _pass, _fail;
         static void Check(string name, bool ok, string detail = "")
@@ -30,6 +30,10 @@ namespace CleanPC.Pro
             Section("CleanGuard table", () => GuardTable());
             Section("Reparse point not followed + locked file skipped", () => ReparseAndLocked(dir));
             Section("Clean runner on throwaway rows", () => RunnerRows(dir));
+            Section("Process safety rules (what may never be closed)", () => ProcessRules());
+            Section("Locked files: structured skips, Restart Manager, graceful close, retry", () => LockFlow(dir));
+            Section("Force end (explicit) and PID-reuse protection", () => ForceAndGone());
+            Section("Storage owners: programs -> install + likely data folders", () => Owners(dir));
             Section("Duplicate finder", () => Duplicates(dir));
             Section("Large file scan", () => LargeFiles(dir));
             Section("Stale dev projects", () => Stale(dir));

@@ -53,6 +53,8 @@ namespace CleanPC.Pro.Ui
         public ReportViewModel Report { get; private set; }
         public ProfilesViewModel Profiles { get; private set; }
         public SettingsViewModel Settings { get; private set; }
+        public LockedViewModel Locks { get; private set; }
+        public OwnersViewModel Owners { get; private set; }
         readonly List<TabViewModel> _tabs = new List<TabViewModel>();
 
         public string AppTitle { get { return AppInfo.Name; } }
@@ -101,7 +103,8 @@ namespace CleanPC.Pro.Ui
             Cleanup = new CleanupViewModel(this); Large = new LargeFilesViewModel(this); Dups = new DuplicatesViewModel(this); Dev = new DevProjectsViewModel(this);
             Startup = new StartupViewModel(this); Space = new SpaceViewModel(this); Security = new SecurityViewModel(this); Report = new ReportViewModel(this);
             Profiles = new ProfilesViewModel(this); Settings = new SettingsViewModel(this);
-            _tabs.AddRange(new TabViewModel[] { Cleanup, Large, Dups, Dev, Startup, Space, Security, Report, Profiles, Settings });
+            Locks = new LockedViewModel(this); Owners = new OwnersViewModel(this);
+            _tabs.AddRange(new TabViewModel[] { Cleanup, Large, Dups, Dev, Startup, Space, Security, Report, Profiles, Settings, Locks, Owners });
             RescanCommand = new RelayCommand(() => { var t = Cleanup.ScanAsync(); }, () => AllIdle);
             StopCommand = new RelayCommand(() => { foreach (var t in _tabs) t.Cancel(); Status = "Stopping..."; });
             DismissErrorCommand = new RelayCommand(() => ErrorBanner = "");

@@ -148,12 +148,23 @@ namespace CleanPC.Pro.Ui
                     Main.RefreshDrives();
                     UpdateTotals();
                     string free = string.Join(",  ", Main.Drives.Where(d => d.IsSelected).Select(d => d.Letter + " " + Fmt.Size(CleanPC.Pro.Drives.FreeOf(d.Letter))));
-                    string m = (res.Cancelled ? "Cancelled. Freed about " : "Freed about ") + Fmt.Size(res.Freed) + "." + (res.SkippedItems > 0 ? "  " + res.SkippedItems + " item(s) had files in use that were skipped (see the row and the log)." : "");
+                    string m = (res.Cancelled ? "Cancelled. Freed about " : "Freed about ") + Fmt.Size(res.Freed) + "." + (res.SkippedItems > 0 ? "  " + res.SkippedItems + " item(s) had files that were skipped" + (res.Locked.Count > 0 ? " (" + res.Locked.Count + " in use by running programs - see Locked files below)." : " (see the row and the log).") : "");
                     Status = m; Main.Status = m;
-                    Dialogs.Info("Cleanup complete", m + "\nFree space now: " + free);
+                    Main.Locks.Load(res.Locked);
+                    StatusPopup.Show(m, free, res.Locked.Count, () => { var w = Application.Current.MainWindow as MainWindow; if (w != null) w.ShowCleanupTab(); });
                 }
                 finally { IsCleaning = false; }
             });
+        }
+
+        /// <summary>Hidden test hook (--demo-locks): cleans the CONTENTS of one throwaway folder through the same guard + post-clean flow.</summary>
+        public void DemoClean(string folder)
+        {
+            var t = new Target { Name = "Demo folder", Kind = TargetKind.Contents, Paths = new List<string> { folder }, Size = CleanOps.DirSize(folder, CancellationToken.None, null), IsChecked = true };
+            var res = CleanRunner.Run(new List<Target> { t }, null, CancellationToken.None, null);
+            string m = "Freed about " + Fmt.Size(res.Freed) + "." + (res.Locked.Count > 0 ? "  " + res.Locked.Count + " in use." : "");
+            Main.Locks.Load(res.Locked);
+            StatusPopup.Show(m, "", res.Locked.Count, () => { var w = Application.Current.MainWindow as MainWindow; if (w != null) w.ShowCleanupTab(); });
         }
 
         void Export()

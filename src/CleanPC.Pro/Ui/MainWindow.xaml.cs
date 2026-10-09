@@ -30,7 +30,7 @@ namespace CleanPC.Pro.Ui
             DataContext = _vm;
             int tab;
             if (args != null && int.TryParse(args.Tab, out tab) && tab >= 0 && tab < Tabs.Items.Count) Tabs.SelectedIndex = tab;
-            Loaded += (s, e) => { _vm.Start(); if (args != null && args.AutoScan) AutoScan(); };
+            Loaded += (s, e) => { _vm.Start(); if (args != null && args.AutoScan) AutoScan(); if (args != null && !string.IsNullOrEmpty(args.DemoLockDir)) _vm.Cleanup.DemoClean(args.DemoLockDir); };
             Closing += OnClosing;
         }
 
@@ -39,6 +39,13 @@ namespace CleanPC.Pro.Ui
         {
             _vm.Large.ScanCommand.Execute(null); _vm.Startup.RefreshCommand.Execute(null); _vm.Security.RunCommand.Execute(null);
             _vm.Profiles.ScanCommand.Execute(null); _vm.Dev.ScanCommand.Execute(null);
+        }
+
+        /// <summary>Used by the post-clean popup: bring the window forward on the Cleanup tab (where the Locked files panel is).</summary>
+        public void ShowCleanupTab()
+        {
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Tabs.SelectedIndex = 0; Activate();
         }
 
         void OnClosing(object sender, CancelEventArgs e)

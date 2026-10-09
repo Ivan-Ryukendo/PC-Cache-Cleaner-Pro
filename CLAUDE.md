@@ -1,4 +1,4 @@
-# PC-Cache-Cleaner-Pro (v1.3.0)
+# PC-Cache-Cleaner-Pro (v1.3.0-beta.2)
 
 C# WPF (.NET Framework 4.8) Windows cache/temp/junk cleaner. This is the **Pro fork** of
 `Ivan-Ryukendo/PC-Cache-Cleaner` (the PowerShell "Standard" edition). One shipped file: `CleanPC-Pro.exe`
@@ -30,15 +30,17 @@ src/CleanPC.Pro/
     Guard/              CleanGuard (allow/deny rules), CleanOps (sizing, deletes, Recycle Bin)
     Targets/            Target model, TargetBuilder (target list), DriveWorker (walk/sweep), Presets
     Scanner/            LargeFileScanner, DuplicateFinder, StaleProjectScanner
-    Cleaner/            CleanRunner
+    Cleaner/            CleanRunner (structured skips, RetrySkipped)
+    Locks/              SkipList (path+reason records), LockDiagnosis (Restart Manager), ProcessGuard (never-close rules + confirmed close)
+    Owners/             StorageOwners (running program -> install + likely data folders)
     Security/           SecurityScanner, SigInfo, StartupManager, NetConnections
     Updater/            UpdateChecker, Downloader
     History/            Settings, SpaceHistory, CleanHistory, ReportExporter
     System/             ProfileManager, RestorePoint, Maintenance (+Scheduler)
-    Headless.cs         --auto / --dryrun / --drives / --safe CLI
-    SelfTest.cs         --selftest checks
+    Headless.cs         --auto / --dryrun / --drives / --safe CLI (+ hidden --demo-locks test hook)
+    SelfTest.cs, SelfTestLocks.cs   --selftest checks
   Ui/
-    MainWindow.xaml(.cs), SpaceChart, Dialogs, UpdateWindow, ErrorWindow
+    MainWindow.xaml(.cs), SpaceChart, Dialogs, UpdateWindow, ErrorWindow, StatusPopup (non-modal post-clean summary)
     ViewModels/         MainViewModel (+TabViewModel), one view model per tab
     Themes/             Light.xaml, Dark.xaml (colours), Controls.xaml (hand-written styles)
   Resources/            app.manifest (requireAdministrator, PerMonitorV2, long paths), asInvoker variant for tests
@@ -58,14 +60,25 @@ cleanings.json).
 
 ## Tabs
 
-1 Cleanup, 2 Large files, 3 Duplicates, 4 Dev projects, 5 Startup, 6 Space history, 7 Security check
+1 Cleanup (+ Locked files panel after a clean), 2 Large files, 3 Duplicates, 4 Dev projects, 5 Startup, 6 Space history, 7 Security check
 (read-only), 8 Report-only (+ maintenance buttons), 9 Other profiles (opt-in, typed confirmation),
-10 History / Settings (exclusions, theme, restore point, export, weekly schedule).
+10 Who is using space (read-only), 11 History / Settings (exclusions, theme, restore point, export, weekly schedule).
 Update checker: header button, user-clicked only.
+
+## Locked files and process closing (Pro-only, separate from the safety contract above)
+
+Skipped files are kept as path + reason + size; Windows Restart Manager names the holding programs (read-only).
+The only process-ending code is the per-row "Close this program" in the Locked files panel: user-confirmed, one process
+at a time, graceful first (about 5 s), forced end only after a second confirmation, logged, never automatic or bulk.
+`ProcessGuard` refuses system/critical processes, services, Explorer, Defender and this program (re-checked at close time,
+with a PID plus start-time identity check). Access denied is reported, never escalated. Retry re-runs only the skipped files
+through `CleanOps` with `CleanGuard` re-checked against the original cleanup path. The Standard repo's CLAUDE.md says its
+security check never kills processes; that stays true there and for the Security tab here - this feature is separate and
+Pro-only. No telemetry, no network. "Who is using space" is read-only and labels name-matched data folders as likely.
 
 ## How it is built
 
-`. .\env.ps1` then `.\build.ps1` (SDK-style csproj, net48, `Microsoft.NETFramework.ReferenceAssemblies`).
+`. .\env.ps1` (also puts TEMP on F:) then `.\build.ps1` (SDK-style csproj, net48, `Microsoft.NETFramework.ReferenceAssemblies`).
 Output is a single `CleanPC-Pro.exe` with embedded icon and manifest. Tests: `CleanPC-Pro.exe --selftest`
 (use a build with `-p:UseInvoker=true` to run without elevation); `--dryrun --drives C` to compare with the
 Standard edition. Never run a real clean on real caches while testing. Releases: `gh release create vX.Y.Z-beta.N

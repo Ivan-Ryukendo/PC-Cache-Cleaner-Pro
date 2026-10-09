@@ -13,3 +13,6 @@ foreach ($d in $env:DOTNET_CLI_HOME,$env:NUGET_PACKAGES,$env:NUGET_HTTP_CACHE_PA
     if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
 }
 if (($env:PATH -split ';') -notcontains 'F:\Dev\tools\dotnet') { $env:PATH = 'F:\Dev\tools\dotnet;' + $env:PATH }
+# TEMP/TMP on F: too, so test runs and child tools never write to C:
+$env:TEMP = 'F:\Dev\tools\tmp'; $env:TMP = $env:TEMP
+if (-not (Test-Path $env:TEMP)) { New-Item -ItemType Directory -Force $env:TEMP | Out-Null }
