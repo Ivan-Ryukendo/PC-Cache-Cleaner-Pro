@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+.vs/
+*.exe
+*.user
+*.suo
+*.part
+CleanPC-Pro-log*
+*.log
+.claude/

@@ -1,0 +1,535 @@
+<Window x:Class="CleanPC.Pro.Ui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:CleanPC.Pro.Ui"
+        Title="PC Cache Cleaner Pro" Width="1180" Height="800" MinWidth="900" MinHeight="640"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal"
+        Background="{DynamicResource BgBrush}" Foreground="{DynamicResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+        <Style x:Key="CellCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16,12,16,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- header -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding AppTitle}" Style="{StaticResource Heading}" TextWrapping="NoWrap"/>
+                    <TextBlock Text="{Binding VersionText}" Style="{StaticResource Dim}" VerticalAlignment="Bottom" Margin="10,0,0,3"/>
+                </StackPanel>
+                <TextBlock Text="{Binding AdminText}" Foreground="{DynamicResource OptionalBrush}" FontWeight="SemiBold">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding IsAdmin}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Check for updates..." Command="{Binding UpdatesCommand}" VerticalAlignment="Top" Margin="12,0,0,0"/>
+        </Grid>
+
+        <!-- banners -->
+        <StackPanel Grid.Row="1">
+            <Border Style="{StaticResource ErrBanner}" Visibility="{Binding HasError, Converter={StaticResource B2V}}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding ErrorBanner}" Foreground="{DynamicResource ErrFgBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissErrorCommand}" Margin="12,0,0,0"/>
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource WarnBanner}" Visibility="{Binding HasLowSpace, Converter={StaticResource B2V}}">
+                <TextBlock Text="{Binding LowSpaceBanner}" Foreground="{DynamicResource WarnFgBrush}" FontWeight="SemiBold"/>
+            </Border>
+            <Border Style="{StaticResource WarnBanner}" Visibility="{Binding HasSpaceDrop, Converter={StaticResource B2V}}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding SpaceDropBanner}" Foreground="{DynamicResource WarnFgBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissDropCommand}" Margin="12,0,0,0"/>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- drive bar -->
+        <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource BorderBrushX}" Background="{DynamicResource SurfaceBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                    <Button Content="Rescan" Style="{StaticResource Primary}" Command="{Binding RescanCommand}" ToolTip="Scan the ticked drives again (Cleanup tab)"/>
+                    <Button Content="Stop" Command="{Binding StopCommand}" Margin="0" ToolTip="Stop whatever is running (keeps what was found)">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="IsEnabled" Value="False"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding AnyBusy}" Value="True"><Setter Property="IsEnabled" Value="True"/></DataTrigger></Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Drives:" FontWeight="SemiBold" VerticalAlignment="Top" Margin="0,2,10,0"/>
+                <CheckBox DockPanel.Dock="Left" Content="All drives" IsChecked="{Binding AllDrives}" FontWeight="SemiBold" VerticalAlignment="Top" Margin="0,3,14,0"/>
+                <ItemsControl ItemsSource="{Binding Drives}" Focusable="False">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate><CheckBox IsChecked="{Binding IsSelected}" Margin="0,3,16,3" ToolTip="Fixed local drives only - removable, network and optical drives are never scanned"><TextBlock Text="{Binding Text}" TextWrapping="NoWrap"/></CheckBox></DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <!-- tabs -->
+        <TabControl Grid.Row="3" x:Name="Tabs">
+            <!-- 1 CLEANUP -->
+            <TabItem Header="Cleanup">
+                <Grid DataContext="{Binding Cleanup}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Preset:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,4"/>
+                        <RadioButton Style="{StaticResource Chip}" Content="Safe only" IsChecked="{Binding IsPresetSafe, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Pre-ticked safe items only"/>
+                        <RadioButton Style="{StaticResource Chip}" Content="Developer" IsChecked="{Binding IsPresetDev, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Safe + non-risky developer caches (Gradle, ...)"/>
+                        <RadioButton Style="{StaticResource Chip}" Content="Deep clean" IsChecked="{Binding IsPresetDeep, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Every non-RISKY item incl. Recycle Bin, root Temp, Claude VM cache"/>
+                        <RadioButton Style="{StaticResource Chip}" Content="Custom" IsChecked="{Binding IsPresetCustom, Mode=TwoWay}" Margin="0,0,6,4" ToolTip="Your saved selection"/>
+                        <Button Content="Save ticked as Custom" Command="{Binding SaveCustomCommand}" Margin="8,0,6,4" MinHeight="28"/>
+                        <TextBlock Text="Tick what you want gone, then press Clean Selected. Only regenerable cache/temp data is listed; risky items are never ticked by a preset. Double-click a row to see every path." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="8,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" x:Name="CleanGrid" ItemsSource="{Binding Targets}" MouseDoubleClick="Grid_DoubleClick" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Cleanup items">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Del">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" ToolTip="Tick to delete this item"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Item" Width="2*" MinWidth="200" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Risk" Width="Auto" MinWidth="70" SortMemberPath="Risk">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding RiskText}" Style="{StaticResource RiskText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Category" Width="Auto" MinWidth="80" SortMemberPath="Category">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Category}" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Paths" Width="Auto" MinWidth="56" SortMemberPath="PathCount">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding PathCount}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Note / result" Width="3*" MinWidth="220" SortMemberPath="Note">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding NoteOrStatus}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding TotalText}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
+                            <Button Content="Select safe" Command="{Binding SetPresetCommand}" CommandParameter="Safe" Margin="0,0,8,4"/>
+                            <Button Content="Select none" Command="{Binding SelectNoneCommand}" Margin="0,0,8,4"/>
+                            <Button Content="Export report..." Command="{Binding ExportCommand}" Margin="0,0,8,4"/>
+                            <Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,4" ToolTip="Stops between items - never in the middle of a delete">
+                                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsCleaning}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                            </Button>
+                            <Button Content="Clean Selected" Style="{StaticResource Primary}" Command="{Binding CleanCommand}" MinWidth="130" Margin="0,0,0,4"/>
+                        </WrapPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 2 LARGE FILES -->
+            <TabItem Header="Large files">
+                <Grid DataContext="{Binding Large}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Show the biggest" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <TextBox Text="{Binding TopN, UpdateSourceTrigger=LostFocus}" Width="64" Margin="0,0,6,4" VerticalContentAlignment="Center" AutomationProperties.Name="Number of files"/>
+                        <TextBlock Text="files per selected drive" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                        <Button Content="Find large files" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Large files">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Bin">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" ToolTip="Tick to send this file to the Recycle Bin"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="File" Width="2*" MinWidth="160" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Modified" Width="Auto" MinWidth="90" SortMemberPath="Modified">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ModifiedText}" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Folder" Width="3*" MinWidth="160" SortMemberPath="Dir">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Dir}" Style="{StaticResource Trim}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Result" Width="*" MinWidth="80" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Status}" Foreground="{DynamicResource RiskyBrush}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="Auto" CanUserSort="False" Header="">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Open location" Margin="0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Ticked files are sent to the Recycle Bin only (restorable) - never deleted permanently. Nothing is ticked for you." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" Content="Send ticked to Recycle Bin" Style="{StaticResource Primary}" Command="{Binding RecycleCommand}" Margin="0"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 3 DUPLICATES -->
+            <TabItem Header="Duplicates">
+                <Grid DataContext="{Binding Dups}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Ignore files smaller than" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <TextBox Text="{Binding MinMB, UpdateSourceTrigger=LostFocus}" Width="56" Margin="0,0,6,4" VerticalContentAlignment="Center" AutomationProperties.Name="Minimum size in megabytes"/>
+                        <TextBlock Text="MB" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                        <Button Content="Find duplicates" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Untick all" Command="{Binding ClearCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="Same size, then partial hash, then full SHA-256. System folders are skipped." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Duplicate files">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Bin">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" ToolTip="Tick the copy to remove (keep at least one per group)"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Group" Width="Auto" MinWidth="60" SortMemberPath="Group">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding GroupText}" FontWeight="SemiBold" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="File" Width="2*" MinWidth="150" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Modified" Width="Auto" MinWidth="90" SortMemberPath="Modified">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ModifiedText}" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Folder" Width="3*" MinWidth="160" SortMemberPath="Dir">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Dir}" Style="{StaticResource Trim}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Result" Width="*" MinWidth="80" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Status}" Foreground="{DynamicResource RiskyBrush}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="Auto" CanUserSort="False" Header="">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Open location" Margin="0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" Content="Send ticked to Recycle Bin" Style="{StaticResource Primary}" Command="{Binding RecycleCommand}" Margin="0"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 4 DEV PROJECTS -->
+            <TabItem Header="Dev projects">
+                <Grid DataContext="{Binding Dev}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Projects not touched for" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <TextBox Text="{Binding Days, UpdateSourceTrigger=LostFocus}" Width="56" Margin="0,0,6,4" VerticalContentAlignment="Center" AutomationProperties.Name="Days"/>
+                        <TextBlock Text="days" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                        <Button Content="Find stale folders" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="node_modules, Rust target, .venv, __pycache__, .gradle, build - regenerable folders only. All start unticked." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Stale dev folders">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Del">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Kind" Width="Auto" MinWidth="110" SortMemberPath="Kind">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Kind}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Idle days" Width="Auto" MinWidth="76" SortMemberPath="IdleDays">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding IdleDays}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Last activity" Width="Auto" MinWidth="96" SortMemberPath="LastActive">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding LastActiveText}" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Folder" Width="3*" MinWidth="200" SortMemberPath="Path">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Result" Width="*" MinWidth="80" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Status}" Foreground="{DynamicResource RiskyBrush}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="Auto" CanUserSort="False" Header="">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Open location" Margin="0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" Content="Delete ticked folders" Style="{StaticResource Primary}" Command="{Binding DeleteCommand}" Margin="0"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 5 STARTUP -->
+            <TabItem Header="Startup">
+                <Grid DataContext="{Binding Startup}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="Refresh" Style="{StaticResource Primary}" Command="{Binding RefreshCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Disable selected" Command="{Binding DisableCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Enable selected" Command="{Binding EnableCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="Reversible: uses the same switches as Task Manager (StartupApproved) and task disable. Entries are never deleted." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" x:Name="StartupGrid" ItemsSource="{Binding Rows}" SelectionChanged="StartupGrid_SelectionChanged" AutomationProperties.Name="Startup entries">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="State" Width="Auto" MinWidth="76" SortMemberPath="Enabled">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StateText}" FontWeight="SemiBold" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Source" Width="Auto" MinWidth="120" SortMemberPath="Source">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Source}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Name" Width="2*" MinWidth="150" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Signature / publisher" Width="2*" MinWidth="140" SortMemberPath="Signature">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Trust}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Command" Width="3*" MinWidth="160" SortMemberPath="Command">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Command}" Style="{StaticResource Trim}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Result" Width="*" MinWidth="90" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Status}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="Auto" CanUserSort="False" Header="">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Open location" Margin="0" MinHeight="26" Padding="8,2" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="2" Text="{Binding Status}" Style="{StaticResource Dim}" Margin="0,8,0,0"/>
+                </Grid>
+            </TabItem>
+
+            <!-- 6 SPACE HISTORY -->
+            <TabItem Header="Space history">
+                <Grid DataContext="{Binding Space}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="2*" MinHeight="150"/><RowDefinition Height="Auto"/><RowDefinition Height="2*"/></Grid.RowDefinitions>
+                    <Border Style="{StaticResource WarnBanner}" Visibility="{Binding HasWarning, Converter={StaticResource B2V}}">
+                        <TextBlock Text="{Binding Warning}" Foreground="{DynamicResource WarnFgBrush}" FontWeight="SemiBold"/>
+                    </Border>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+                        <Button Content="Record free space now" Command="{Binding RecordNowCommand}" Margin="0,0,12,4"/>
+                        <ItemsControl ItemsSource="{Binding Series}" Focusable="False">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal" Margin="0,4,14,4"><Rectangle Width="14" Height="4" Fill="{Binding Color}" Margin="0,0,5,0" VerticalAlignment="Center"/><TextBlock Text="{Binding Name}" TextWrapping="NoWrap"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Free space (GB) over time. You get a warning at start-up when a drive lost more than the limit set in History / Settings." Style="{StaticResource Dim}" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <ui:SpaceChart Grid.Row="2" Series="{Binding Series}" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="3" Text="{Binding Status}" Style="{StaticResource Dim}" Margin="0,0,0,4"/>
+                    <DataGrid Grid.Row="4" ItemsSource="{Binding Rows}" AutomationProperties.Name="Free space samples">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="When" Binding="{Binding Time}" Width="Auto" MinWidth="140" SortMemberPath="Time"/>
+                            <DataGridTextColumn Header="Drive" Binding="{Binding Drive}" Width="Auto" MinWidth="60"/>
+                            <DataGridTextColumn Header="Free" Binding="{Binding Free}" Width="Auto" MinWidth="90" SortMemberPath="Bytes"/>
+                            <DataGridTextColumn Header="Change" Binding="{Binding Delta}" Width="Auto" MinWidth="90"/>
+                            <DataGridTextColumn Header="Drive size" Binding="{Binding Size}" Width="Auto" MinWidth="90"/>
+                            <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="*" MinWidth="70"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- 7 SECURITY -->
+            <TabItem Header="Security check">
+                <Grid DataContext="{Binding Security}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="3*" MinHeight="120"/><RowDefinition Height="2*" MinHeight="150"/></Grid.RowDefinitions>
+                    <TextBlock Text="READ-ONLY heuristic check. Results are 'suspicious, review' - NOT confirmed malware. Nothing is killed, deleted or uploaded. Many unsigned developer tools and games will appear." Style="{StaticResource Dim}" Margin="0,0,0,8"/>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                        <Button Content="Run security check" Style="{StaticResource Primary}" Command="{Binding RunCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Open file location" Command="{Binding OpenCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Check on VirusTotal" Command="{Binding VtCommand}" Margin="0,0,8,4" ToolTip="Opens your browser at the hash page on virustotal.com. The file itself is never uploaded."/>
+                        <Button Content="Copy SHA-256" Command="{Binding CopyHashCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single" AutomationProperties.Name="Flagged items" Margin="0,0,0,8">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Level" Width="Auto" MinWidth="64" SortMemberPath="Order">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Severity}" Style="{StaticResource SevText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Type" Width="Auto" MinWidth="70" SortMemberPath="Type">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Type}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Name" Width="2*" MinWidth="130" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="PID" Width="Auto" MinWidth="50" SortMemberPath="Pid">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding PidText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Signature" Width="*" MinWidth="110" SortMemberPath="Signature">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SigText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Why it is flagged (suspicious, review)" Width="3*" MinWidth="200" SortMemberPath="Reasons">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Reasons}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Path" Width="2*" MinWidth="120" SortMemberPath="Path">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" Style="{StaticResource Trim}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Grid Grid.Row="3">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <TextBox Grid.RowSpan="1" Text="{Binding Detail, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,0,0,6" AutomationProperties.Name="Selected item details" FontFamily="Consolas"/>
+                        <TextBox Grid.Row="1" Text="{Binding DefenderText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Defender status"/>
+                        <DataGrid Grid.Column="2" Grid.RowSpan="2" ItemsSource="{Binding Extensions}" AutomationProperties.Name="Browser extensions (names only)">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Browser" Binding="{Binding Browser}" Width="Auto" MinWidth="90"/>
+                                <DataGridTextColumn Header="Profile" Binding="{Binding Profile}" Width="Auto" MinWidth="70"/>
+                                <DataGridTextColumn Header="Extension (name only)" Binding="{Binding Name}" Width="*" MinWidth="140"/>
+                                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="Auto" MinWidth="64"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 8 REPORT-ONLY -->
+            <TabItem Header="{Binding Report.Title}">
+                <Grid DataContext="{Binding Report}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="2*" MinHeight="120"/><RowDefinition Height="3*" MinHeight="170"/></Grid.RowDefinitions>
+                    <TextBlock Text="Information only. Big virtual disks (WSL/Docker/Application Guard/WSA), shadow copies / System Restore and installed Node versions are NEVER deleted by this tool - the last column says how to deal with them yourself. Filled by the Cleanup scan." Style="{StaticResource Dim}" Margin="0,0,0,8"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" AutomationProperties.Name="Report only items" Margin="0,0,0,8">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Item" Width="2*" MinWidth="150" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Location" Width="2*" MinWidth="140" SortMemberPath="PathsText"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding PathsText}" Style="{StaticResource Trim}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="How to deal with it (shown as text, never executed)" Width="4*" MinWidth="260" SortMemberPath="Note"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Note}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource BorderBrushX}" CornerRadius="6" Padding="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Windows maintenance (each button explains what it does and asks first)" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Content="DISM component cleanup..." Command="{Binding DismCommand}" Margin="0,0,8,6" ToolTip="dism.exe /Online /Cleanup-Image /StartComponentCleanup"/>
+                                    <Button Content="Open Storage Sense settings..." Command="{Binding StorageSenseCommand}" Margin="0,0,8,6"/>
+                                    <Button Content="Open Disk Cleanup (cleanmgr)..." Command="{Binding CleanMgrCommand}" Margin="0,0,8,6"/>
+                                </WrapPanel>
+                                <TextBlock Text="Shadow storage cap - command shown for you to run yourself in an admin console (this tool never runs it):" Style="{StaticResource Dim}" Margin="0,4,0,4"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding ShadowCapText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,0,8,0" AutomationProperties.Name="Shadow storage command"/>
+                                    <Button Grid.Column="1" Content="Copy" Command="{Binding CopyCommand}" CommandParameter="{Binding ShadowCapText}" Margin="0"/>
+                                </Grid>
+                                <TextBlock Text="Output" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                <TextBox Text="{Binding Output, Mode=OneWay}" IsReadOnly="True" Height="110" FontFamily="Consolas" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Maintenance output"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- 9 OTHER PROFILES -->
+            <TabItem Header="{Binding Profiles.Title}">
+                <Grid DataContext="{Binding Profiles}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Border Style="{StaticResource ErrBanner}">
+                        <TextBlock Foreground="{DynamicResource ErrFgBrush}" Text="DANGER ZONE - optional. Lists OTHER Windows user accounts' profiles (never the one you are logged in as, never system/Default/Public/Administrator, never a loaded profile). Deleting a profile permanently removes that user's documents, desktop, pictures and settings. Nothing is ticked by default and you must type the profile name to confirm."/>
+                    </Border>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                        <Button Content="List profiles" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,12,4"/>
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Rows}" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Other user profiles">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="46" CanUserResize="False" CanUserSort="False" Header="Del"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox Style="{StaticResource CellCheck}" IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Profile" Width="Auto" MinWidth="110" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Size" Width="Auto" MinWidth="80" SortMemberPath="Size"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SizeText}" Style="{StaticResource Num}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Last used" Width="Auto" MinWidth="90" SortMemberPath="LastUse"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding LastUse}" TextWrapping="NoWrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Location" Width="2*" MinWidth="160" SortMemberPath="Path"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Result" Width="*" MinWidth="100"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Status}" Foreground="{DynamicResource RiskyBrush}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button Grid.Row="3" Content="Delete ticked profile(s)..." Command="{Binding DeleteCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                </Grid>
+            </TabItem>
+
+            <!-- 10 HISTORY / SETTINGS -->
+            <TabItem Header="History / Settings">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Settings}">
+                    <StackPanel Margin="0,0,12,12" MaxWidth="1000" HorizontalAlignment="Left">
+                        <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <WrapPanel Margin="0,0,0,10">
+                            <RadioButton Style="{StaticResource Chip}" Content="Follow Windows" IsChecked="{Binding IsThemeSystem, Mode=TwoWay}" GroupName="theme" Margin="0,0,6,4"/>
+                            <RadioButton Style="{StaticResource Chip}" Content="Light" IsChecked="{Binding IsThemeLight, Mode=TwoWay}" GroupName="theme" Margin="0,0,6,4"/>
+                            <RadioButton Style="{StaticResource Chip}" Content="Dark" IsChecked="{Binding IsThemeDark, Mode=TwoWay}" GroupName="theme" Margin="0,0,6,4"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Safety" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <CheckBox Content="Create a System Restore point before cleaning (needs Administrator; Windows allows one per 24 h)" IsChecked="{Binding RestorePoint}" Margin="0,0,0,6"/>
+                        <WrapPanel Margin="0,0,0,10">
+                            <TextBlock Text="Warn at start-up if free space dropped by more than" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                            <TextBox Text="{Binding WarnDropGB, UpdateSourceTrigger=LostFocus}" Width="56" Margin="0,0,6,4" VerticalContentAlignment="Center" AutomationProperties.Name="Free space drop warning in GB"/>
+                            <TextBlock Text="GB since the last run" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Exclusions - folders that are never scanned and never cleaned" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ListBox ItemsSource="{Binding Exclusions}" SelectedItem="{Binding SelectedExclusion}" MinHeight="70" MaxHeight="130" AutomationProperties.Name="Excluded folders"/>
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <Button Content="Add folder..." Command="{Binding AddExclusionCommand}" Margin="0,0,0,6"/>
+                                <Button Content="Remove selected" Command="{Binding RemoveExclusionCommand}" Margin="0"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding Message}" Style="{StaticResource Dim}" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Scheduled cleaning" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <TextBlock Text="{Binding ScheduleText}" Margin="0,0,0,6"/>
+                        <WrapPanel Margin="0,0,0,10">
+                            <Button Content="Create weekly safe clean" Command="{Binding ScheduleCreateCommand}" Margin="0,0,8,4"/>
+                            <Button Content="Remove scheduled task" Command="{Binding ScheduleRemoveCommand}" Margin="0,0,8,4"/>
+                        </WrapPanel>
+
+                        <TextBlock Text="Export and files" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <WrapPanel Margin="0,0,0,4"><Button Content="Export last scan to HTML / CSV..." Command="{Binding ExportCommand}" Margin="0,0,8,4"/></WrapPanel>
+                        <TextBlock Margin="0,0,0,2"><Run Text="Settings, history: "/><Run Text="{Binding DataFolder, Mode=OneWay}" FontFamily="Consolas"/></TextBlock>
+                        <TextBlock Margin="0,0,0,10"><Run Text="Log: "/><Run Text="{Binding LogPath, Mode=OneWay}" FontFamily="Consolas"/></TextBlock>
+
+                        <TextBlock Text="Cleaning history" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,6"/>
+                        <DataGrid ItemsSource="{Binding History}" Height="260" AutomationProperties.Name="Cleaning history">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="When" Binding="{Binding Time}" Width="Auto" MinWidth="140"/>
+                                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="Auto" MinWidth="60"/>
+                                <DataGridTextColumn Header="Drives" Binding="{Binding Drives}" Width="Auto" MinWidth="70"/>
+                                <DataGridTextColumn Header="Items" Binding="{Binding Items}" Width="Auto" MinWidth="56"/>
+                                <DataGridTextColumn Header="Freed" Binding="{Binding FreedText}" Width="Auto" MinWidth="90" SortMemberPath="Freed"/>
+                                <DataGridTextColumn Header="Preset / detail" Binding="{Binding Detail}" Width="*" MinWidth="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- status bar -->
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="180"/></Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Status}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <ProgressBar Grid.Column="1" Height="10" IsIndeterminate="True" VerticalAlignment="Center" Visibility="{Binding AnyBusy, Converter={StaticResource B2V}}"/>
+        </Grid>
+    </Grid>
+</Window>
