@@ -199,6 +199,11 @@
                         <Button Content="Find duplicates" Style="{StaticResource Primary}" Command="{Binding ScanCommand}" Margin="0,0,8,4"/>
                         <Button Content="Untick all" Command="{Binding ClearCommand}" Margin="0,0,12,4"/>
                         <TextBlock Text="Same size, then partial hash, then full SHA-256. System folders are skipped." Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                        <Button Content="Add folder to scan..." Command="{Binding AddFolderCommand}" Margin="0,0,8,4"/>
+                        <Button Content="Clear folders" Command="{Binding ClearFoldersCommand}" Margin="0,0,12,4"/>
+                        <Button Content="Keep copies in folder..." Command="{Binding KeepFolderCommand}" Margin="0,0,8,4" ToolTip="Ticks the copies outside the chosen folder, in groups that also have a copy inside it"/>
+                        <Button Content="Remove copies from folder..." Command="{Binding RemoveFolderCommand}" Margin="0,0,12,4" ToolTip="Ticks the copies inside the chosen folder, in groups that also have a copy outside it"/>
+                        <TextBlock Text="{Binding FoldersText}" Style="{StaticResource Dim}" VerticalAlignment="Center" Margin="0,0,0,4" TextWrapping="Wrap"/>
                     </WrapPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" PreviewKeyDown="Grid_KeyDown" AutomationProperties.Name="Duplicate files">
                         <DataGrid.Columns>

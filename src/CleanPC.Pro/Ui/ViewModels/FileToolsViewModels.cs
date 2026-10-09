@@ -80,6 +80,12 @@ namespace CleanPC.Pro.Ui
         public RelayCommand RecycleCommand { get; private set; }
         public RelayCommand OpenCommand { get; private set; }
         public RelayCommand ClearCommand { get; private set; }
+        public RelayCommand AddFolderCommand { get; private set; }
+        public RelayCommand ClearFoldersCommand { get; private set; }
+        public RelayCommand KeepFolderCommand { get; private set; }
+        public RelayCommand RemoveFolderCommand { get; private set; }
+        readonly List<string> _folders = new List<string>();
+        string _foldersText = "Scanning: the ticked drives. Add folders to scan only those."; public string FoldersText { get { return _foldersText; } private set { Set(ref _foldersText, value); } }
         int _min; public int MinMB { get { return _min; } set { if (Set(ref _min, Math.Max(0, Math.Min(100000, value)))) { var s = CleanPC.Pro.Settings.Current; s.DuplicateMinMB = _min; s.Save(); } } }
         string _sum = "Duplicates are never selected for you - tick the copies you want to remove. At least one copy in every group is always kept."; public string Summary { get { return _sum; } private set { Set(ref _sum, value); } }
 
@@ -90,15 +96,60 @@ namespace CleanPC.Pro.Ui
             RecycleCommand = new RelayCommand(() => { var t = RecycleAsync(); }, () => IsIdle && Rows.Any(r => r.IsChecked));
             OpenCommand = new RelayCommand(p => { var r = p as FileRow; if (r != null) Dialogs.Reveal(r.Path); });
             ClearCommand = new RelayCommand(() => { foreach (var r in Rows) r.IsChecked = false; });
+            AddFolderCommand = new RelayCommand(() =>
+            {
+                string f = Dialogs.PickFolder("Choose a folder to search for duplicates (add several to compare across folders)");
+                if (f == null) return;
+                f = f.TrimEnd('\\');
+                if (!_folders.Any(x => string.Equals(x, f, StringComparison.OrdinalIgnoreCase))) _folders.Add(f);
+                ShowFolders();
+            }, () => IsIdle);
+            ClearFoldersCommand = new RelayCommand(() => { _folders.Clear(); ShowFolders(); }, () => IsIdle);
+            KeepFolderCommand = new RelayCommand(() => { PickRule(true); }, () => IsIdle && Rows.Count > 0);
+            RemoveFolderCommand = new RelayCommand(() => { PickRule(false); }, () => IsIdle && Rows.Count > 0);
+        }
+
+        void ShowFolders()
+        {
+            FoldersText = _folders.Count == 0 ? "Scanning: the ticked drives. Add folders to scan only those."
+                : "Scanning only: " + string.Join("  |  ", _folders);
+        }
+
+        static bool InFolder(string path, string folder)
+        {
+            string f = folder.TrimEnd('\\') + "\\";
+            return path.StartsWith(f, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // keep=true: tick copies OUTSIDE the folder where the group also has a copy inside it (the folder's copy is kept).
+        // keep=false: tick copies INSIDE the folder where the group also has a copy outside it.
+        // A group is only touched when at least one copy stays, so the last copy is never ticked.
+        void PickRule(bool keep)
+        {
+            string f = Dialogs.PickFolder(keep ? "Choose the folder whose copies you want to KEEP" : "Choose the folder to REMOVE copies from");
+            if (f == null) return;
+            int groups = 0, ticked = 0;
+            foreach (var g in Rows.GroupBy(r => r.Group))
+            {
+                var inside = g.Where(r => InFolder(r.Path, f)).ToList();
+                var outside = g.Where(r => !InFolder(r.Path, f)).ToList();
+                if (inside.Count == 0 || outside.Count == 0) continue;
+                groups++;
+                foreach (var r in (keep ? outside : inside)) { r.IsChecked = true; ticked++; }
+            }
+            Status = ticked == 0 ? "No group has copies both inside and outside that folder; nothing ticked."
+                : "Ticked " + ticked + " copy/copies in " + groups + " group(s). Review the list, then send to the Recycle Bin.";
         }
 
         Task ScanAsync()
         {
             return RunAsync("Looking for duplicates (size, then partial hash, then SHA-256)...", async (ct, prog) =>
             {
-                var drives = Main.SelectedDrives; if (drives.Count == 0) { Dialogs.Info("Duplicates", "Tick at least one drive."); return; }
+                var drives = Main.SelectedDrives;
+                if (_folders.Count == 0 && drives.Count == 0) { Dialogs.Info("Duplicates", "Tick at least one drive, or add a folder."); return; }
                 long min = Math.Max(1, (long)MinMB) * 1024 * 1024; if (MinMB == 0) min = 1;
-                var groups = await Task.Run(() => DuplicateFinder.Find(drives, min, prog, ct), ct);
+                var roots = _folders.ToList();
+                var groups = await Task.Run(() => roots.Count > 0 ? DuplicateFinder.FindIn(roots, min, prog, ct) : DuplicateFinder.Find(drives, min, prog, ct), ct);
                 var list = new List<FileRow>(); int gi = 0; long wasted = 0;
                 foreach (var g in groups.OrderByDescending(g => g.Count * 1L * new FileInfo(g[0]).Length))
                 {
@@ -117,7 +168,7 @@ namespace CleanPC.Pro.Ui
         void UpdateSummary(int groups, long wasted)
         {
             var t = Rows.Where(r => r.IsChecked).ToList();
-            Summary = groups + " group(s), " + Fmt.Size(wasted) + " reclaimable if all but one copy is removed.   Ticked: " + t.Count + " file(s), " + Fmt.Size(t.Sum(r => r.Size)) + ".  Nothing is ticked for you; one copy per group is always kept.";
+            Summary = groups + " group(s), " + Fmt.Size(wasted) + " reclaimable if all but one copy is removed.   Ticked: " + t.Count + " file(s), " + Fmt.Size(t.Sum(r => r.Size)) + ".  Nothing is ticked unless you use a keep/remove folder button; one copy per group is always kept.";
         }
 
         Task RecycleAsync()
